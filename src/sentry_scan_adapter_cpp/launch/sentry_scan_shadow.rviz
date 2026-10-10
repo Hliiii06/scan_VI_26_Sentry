@@ -31,10 +31,10 @@ Visualization Manager:
     Style: Points
     Topic:
       Depth: 5
-      Durability Policy: Transient Local
+      Durability Policy: Volatile
       Filter size: 10
       History Policy: Keep Last
-      Reliability Policy: Reliable
+      Reliability Policy: Best Effort
       Value: /sentry_scan/ground_surface
     Use Fixed Frame: true
     Use rainbow: true
@@ -50,10 +50,10 @@ Visualization Manager:
     Style: Points
     Topic:
       Depth: 5
-      Durability Policy: Transient Local
+      Durability Policy: Volatile
       Filter size: 10
       History Policy: Keep Last
-      Reliability Policy: Reliable
+      Reliability Policy: Best Effort
       Value: /sentry_scan/global_cloud_raw
     Use Fixed Frame: true
     Use rainbow: true
@@ -142,10 +142,10 @@ Visualization Manager:
     Style: Flat Squares
     Topic:
       Depth: 1
-      Durability Policy: Transient Local
+      Durability Policy: Volatile
       Filter size: 10
       History Policy: Keep Last
-      Reliability Policy: Reliable
+      Reliability Policy: Best Effort
       Value: /sentry_scan/global_cloud
     Use Fixed Frame: true
     Use rainbow: true
@@ -179,7 +179,7 @@ Visualization Manager:
       Durability Policy: Volatile
       Filter size: 10
       History Policy: Keep Last
-      Reliability Policy: Reliable
+      Reliability Policy: Best Effort
       Value: /sentry_scan/grid_map/occupancy
     Use Fixed Frame: true
     Use rainbow: true
@@ -206,14 +206,14 @@ Visualization Manager:
     Position Transformer: XYZ
     Selectable: true
     Size (Pixels): 3
-    Size (m): 0.06
+    Size (m): 0.05
     Style: Boxes
     Topic:
       Depth: 5
       Durability Policy: Volatile
       Filter size: 10
       History Policy: Keep Last
-      Reliability Policy: Reliable
+      Reliability Policy: Best Effort
       Value: /sentry_scan/grid_map/occupancy_inflate
     Use Fixed Frame: true
     Use rainbow: true
