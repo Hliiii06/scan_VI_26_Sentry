@@ -1,0 +1,14 @@
+# 影子契约测试专用 Mode 2 航点（不是实车任务文件）。
+# 坐标系 = 规划系(odom)，坐标为**机体参考中心**；配合 scripts/fake_rm_inputs.py 的
+# 合成房间（±4 m）使用。第一个航点不能与初始位姿 (0,0,0.1) 重合。
+#
+# 注意（实测，2026-10-07）：≤1.5 m 的航点段会触发
+# `Dynamic feasibility failed: acceleration ... > 1.500` 并重规划 999 次后无轨迹；
+# 同一参数下 2.0 m 段正常。因此这里用两段 ≥2 m 的航点，只验证 Mode 2 接线与候选速度，
+# 不把短段可行性问题混进契约测试。该现象属既有规划器行为，另列未决项。
+/sentry_scan/scan_planner_node:
+  ros__parameters:
+    fsm.navi_mode: 2
+    fsm.waypoints:
+      [1.50, 1.50, 0.10,
+       -1.50, 1.50, 0.10]

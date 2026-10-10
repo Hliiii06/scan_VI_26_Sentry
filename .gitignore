@@ -1,0 +1,9 @@
+# 构建产物（本地生成，不入库）
+build/
+install/
+log/
+.ros_test/
+
+# 编辑器/系统
+*.swp
+.DS_Store

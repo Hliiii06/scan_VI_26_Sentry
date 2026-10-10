@@ -1,0 +1,47 @@
+# 全向哨兵跟踪器与运动模拟器参数（PCD/RViz 闭环仿真）
+#
+# 速度上限来自 VI_26_Sentry/src/hnurm_navigation/params/nav2_params.yaml 的
+# MPPI Omni 采样上限：vx ∈ [-1.0, 1.0]、|vy| ≤ 1.0、|wz| ≤ 1.5。
+/sentry_sim/closed_loop_controller:
+  ros__parameters:
+    use_sim_time: false
+    time_forward: 0.8
+
+    # 机身朝向与运动方向解耦：
+    #   hold  —— 保持接收轨迹时的车身朝向（哨兵默认，可原地横移）
+    #   align —— 跟踪轨迹切线朝向，但不阻塞平移（上游会自动对齐并冻结）
+    #   spin  —— 恒定自转 spin_rate，用于"边转边走"包络测试
+    yaw_mode: hold
+    spin_rate: 0.0
+
+    kp_pos: 0.8
+    kp_yaw: 1.5
+    max_vx: 1.0
+    max_vy: 1.0
+    max_vyaw: 1.5
+    finish_dist: 0.15
+
+    # 里程计新鲜度：超过该时间没有新 odom 立即停车并遗忘旧轨迹。
+    odom_timeout: 0.5
+    # 收到新轨迹时允许用消息 start_time 对齐的最大提前量。
+    start_time_align_limit: 0.5
+
+/sentry_sim/go2_kinematic_sim:
+  ros__parameters:
+    use_sim_time: false
+    init_x: -6.0
+    init_y: 1.25
+    init_z: 0.125
+    init_yaw: 0.0
+    max_vx: 1.0
+    max_vy: 1.0
+    max_vyaw: 1.5
+    # 一阶加速度限制：使速度不能瞬间跳变，闭环跟踪误差才有意义。
+    # 属仿真示例值，不是 RM 实测加速度上限（RM 的 MPPI 加速度上限为 UNKNOWN）。
+    max_acc_xy: 1.0
+    max_acc_yaw: 2.0
+    cmd_timeout: 0.3
+    sim_rate: 100.0
+    publish_tf: false
+    frame_id: world
+    child_frame_id: base

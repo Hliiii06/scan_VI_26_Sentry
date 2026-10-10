@@ -1,0 +1,86 @@
+# 影子接入参数模板（RM → SCAN，无底盘输出）
+#
+# 本文件是 B1 的“参数模板”交付：它描述**默认假设**，不是实车标定结果。
+# 标有 UNKNOWN 的项必须在 I1 用现车/录包核对后才能作为实车依据。
+# 契约说明见 docs/interfaces/shadow_input_contract.md。
+
+/sentry_scan/rm_input_adapter:
+  ros__parameters:
+    # ---- 坐标系（PROPOSED，需现场核对）----
+    planning_frame: odom          # 局部规划系；当前取 /Odometry_transformed 的父 frame
+    task_frame: map               # 任务/路线系；用于 map→odom 跳变监测
+    body_frame: base_link         # 规划参考点所在 frame；RM 的 LIO 机体系，UNKNOWN 是否等于几何中心
+    sensor_frame: lidar_link      # 雷达射线原点 frame
+    body_center_offset_xyz: ""    # body_frame -> 规划参考中心的杆臂（米），空=不加偏移
+    imu_to_body_offset_xyz: ""    # IMU 点 -> 机体中心的杆臂（米），空=不做杆臂补偿
+
+    # ---- 输入话题（RM main 7dfe71a 的现有发布）----
+    odom_topic: /Odometry_transformed
+    velocity_topic: /LIVO2/imu_propagate
+    cloud_topic: /cloud_registered
+    velocity_frame: world         # imu_propagate 的 header.frame_id；UNKNOWN 与 odom 的数值关系
+    velocity_frame_alias: ""      # 若该名字数值上等同规划系（需 I1 核对），在此显式声明；
+                                  # 留空且无 TF 时速度降级为零，不当作机体中心速度
+
+    # ---- 时间 / TF 门控 ----
+    max_source_age: 0.5           # now - header.stamp 上限
+    max_receive_age: 0.5          # now - 本机收到时刻上限（防旧 stamp 重发绕过）
+    max_stamp_regression: 0.0     # 允许的时间倒退（秒）；0 = 不允许
+    max_future_stamp: 0.05        # 未来时间戳容差；超过即拒绝且不写入历史
+    min_valid_points: 10          # 点云必须有至少这么多有限 xyz 点，否则拒绝该帧
+    tf_lookup_timeout: 0.0      # 非阻塞；>0 会在单线程 executor 里阻塞 TF 订阅
+    tf_future_tolerance: 0.15   # 允许用最新 TF 顶替的最大偏差。实测：/Odometry_transformed
+                                # 9.95 Hz（周期 0.1005 s）且 TfTransformer 先发消息、
+                                # 后广播同 stamp 的 odom→base_link，按消息时刻查询必然
+                                # 缺最新样本；0.05 会让 sensor_pose/云路径持续被拒。
+                                # 0.15 = 一个周期 + 余量（查询延迟记录在 tf.last_lookup_delay_s）
+    odom_in_planning_frame: true  # 里程计已在规划系时直接用其位姿（真实 TfTransformer
+                                  # 先发 /Odometry_transformed、再广播同 stamp 的 odom→base_link）
+    require_tf: true
+    cloud_assume_planning_frame: false   # true 时不再对 cloud 做 TF（仅当确认云已在规划系）
+
+    # ---- 定位跳变 / 失效锁止 ----
+    monitor_task_frame: true
+    localization_jump_translation: 0.5   # 米；超过即判跳变
+    localization_jump_rotation: 0.35     # 弧度
+    jump_latch_duration: 0.0             # 0 = 锁止到整组重启（影子阶段默认）
+    reset_on_unhealthy: true             # 失效时发布 planning/reset 撤销任务
+    reset_repeat_period: 1.0
+
+    # ---- 速度语义 ----
+    require_center_velocity: false  # true = 没有杆臂补偿时拒绝速度（twist 置零）
+    require_angular_velocity: false
+    health_period: 0.5
+
+/sentry_scan/task_adapter:
+  ros__parameters:
+    planning_frame: odom
+    goal_in_topic: task/goal_in      # RViz 2D Goal Pose / 上层目标（任意 frame）
+    goal_out_topic: goal             # FSM Mode 1 的输入，已转换到规划系
+    path_in_topic: task/path_in      # 参考路线输入（任意 frame）
+    path_out_topic: initial_path     # FSM Mode 3 的输入，已转换到规划系
+    tf_lookup_timeout: 0.0
+    tf_future_tolerance: 0.05
+    odom_in_planning_frame: true   # 同上：任务适配层不需要，保留以便对照
+    max_source_age: 1.0
+    max_future_stamp: 0.05
+    empty_frame_is_planning: false   # 只有确认发布者真的用规划系时才置 true
+
+/sentry_scan/shadow_guard:
+  ros__parameters:
+    health_topic: health_ok
+    candidate_topic: cmd_vel_candidate
+    shadow_topic: cmd_vel_shadow
+    body_pose_topic: body_pose
+    max_health_age: 0.5
+    max_body_age: 0.5
+    max_vx: 1.0                   # 来自 RM MPPI Omni 采样上限，用户已确认
+    max_vy: 1.0
+    max_wz: 1.5
+    zero_yaw_candidate: true      # 影子阶段不透传 yaw 候选，MCU 保留朝向所有权
+    cloud_update_topic: grid_map/cloud_update  # 规划地图"真的接受了新点云"的心跳
+    max_map_age: 0.5              # 心跳超过该时间：始终输出零 + 撤销任务并锁止，直到新任务
+    output_rate: 20.0
+    record: true
+    log_dir: log/shadow
+    graph_check_period: 1.0       # 周期检查 ROS 图里是否出现 /cmd_vel 发布者

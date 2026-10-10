@@ -1,0 +1,13 @@
+# Mode 3：已知参考路线。
+# waypoints 的 z 是地面/路线高度；scan_planner 会再加 grid_map.body_height(0.125)，
+# 因此这里给 0.0，最终轨迹参考面落在 z=0.125（机体中心），只相加一次。
+/sentry_sim/reference_path_publisher:
+  ros__parameters:
+    frame_id: world
+    publish_delay_sec: 0.5
+    waypoints:
+      [-6.0, 1.25, 0.0,
+       -6.0, 2.50, 0.0,
+       -6.0, 4.00, 0.0,
+       -6.0, 5.50, 0.0,
+       -6.0, 7.50, 0.0]

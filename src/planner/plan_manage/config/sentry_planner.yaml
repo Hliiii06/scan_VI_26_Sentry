@@ -1,0 +1,90 @@
+# 全向哨兵 SCAN 规划参数（PCD/RViz 闭环仿真）
+#
+# 参数来源
+#   机器人外形：用户给定 —— 半径 0.26 m、高 0.25 m。
+#   速度上限：VI_26_Sentry/src/hnurm_navigation/params/nav2_params.yaml 中
+#            controller_server.FollowPath（nav2_mppi_controller::MPPIController，
+#            motion_model: Omni）的采样上限：vx ∈ [-1.0, 1.0]、|vy| ≤ 1.0、
+#            |wz| ≤ 1.5，controller_frequency 100 Hz。
+#   未由用户给出的量（安全余量、加速度上限）保持 0 / SCAN 原值，并显式标注，不臆造实车阈值。
+/sentry_sim/scan_planner_node:
+  ros__parameters:
+    use_sim_time: false
+
+    fsm.navi_mode: 1
+    fsm.thresh_replan: 1.0
+    fsm.thresh_no_replan: 0.1
+    fsm.planning_horizon: 3.5
+    fsm.emergency_time: 1.0
+    fsm.fail_safe: true
+    fsm.max_replan_fail_count: 1000
+
+    grid_map.resolution: 0.05
+    grid_map.sliding_map_size_x: 10.0
+    grid_map.sliding_map_size_y: 10.0
+    grid_map.sliding_map_size_z: 5.0
+    grid_map.local_update_range_x: 5.0
+    grid_map.local_update_range_y: 5.0
+    grid_map.local_update_range_z: 2.5
+    grid_map.map_sliding_en: true
+    grid_map.map_sliding_thresh: 0.2
+
+    # ---- 全向碰撞包络 ----
+    # double_cylinder_offset = 0 时退化为单个竖直圆柱：查询结果与机身朝向无关，
+    # 对任意旋转角都是保守覆盖（上游 offset=0.18 的胶囊近似依赖轨迹切线朝向）。
+    # 有效半径 = double_cylinder_radius + safety_margin。
+    # safety_margin 默认 0：用户未给出安全余量，不作为实车阈值使用。
+    grid_map.double_cylinder_radius: 0.26
+    grid_map.double_cylinder_offset: 0.0
+    grid_map.safety_margin: 0.0
+
+    # 机体高 0.25 m。轨迹参考面取机体中心 z = 0.125，上下各扩 0.125 m，
+    # 于是碰撞查询覆盖完整的 [0, 0.25] 机体高度带（地面已被 map_pub 过滤到 z=0）。
+    grid_map.body_height: 0.125
+    grid_map.obstacles_inflation_z_up: 0.125
+    grid_map.obstacles_inflation_z_down: 0.125
+
+    grid_map.frame_id: world
+    grid_map.sliding_map_frame_id: sliding_map
+    grid_map.ground_height: 0.0
+    grid_map.sensor_type: lidar
+    grid_map.cloud_is_world: true
+    grid_map.need_extrinsic: false
+
+    grid_map.cx: 321.04638671875
+    grid_map.cy: 243.44969177246094
+    grid_map.fx: 387.229248046875
+    grid_map.fy: 387.229248046875
+    grid_map.depth_filter_maxdist: 3.0
+    grid_map.depth_filter_mindist: 0.3
+    grid_map.depth_filter_margin: 1
+    grid_map.k_depth_scaling_factor: 1000.0
+    grid_map.skip_pixel: 2
+
+    grid_map.p_hit: 0.85
+    grid_map.p_miss: 0.30
+    grid_map.p_min: 0.12
+    grid_map.p_max: 0.98
+    grid_map.p_occ: 0.80
+    grid_map.max_ray_length: 5.0
+    grid_map.vis_height: 0.3
+    grid_map.show_occ_time: false
+
+    # 轨迹约束。max_vel 取 MPPI 的 vx_max=1.0；SCAN 只有各向同性的 max_vel，
+    # 不对 vx/vy 分别设限，横向限速由跟踪器 max_vy 承担。
+    # max_acc 保持 SCAN 原值 0.5：RM 的 MPPI 加速度上限为 UNKNOWN，不臆造。
+    manager.max_vel: 1.0
+    manager.max_acc: 0.5
+    manager.max_jerk: 4.0
+    manager.control_points_distance: 0.2
+    manager.feasibility_tolerance: 0.5
+    manager.planning_horizon: 3.5
+
+    optimization.lambda_smooth: 1.0
+    optimization.lambda_collision: 1.0
+    optimization.lambda_feasibility: 0.1
+    optimization.lambda_fitness: 1.0
+    optimization.dist0: 0.2
+    optimization.max_vel: 1.0
+    optimization.max_acc: 0.5
+    optimization.order: 3

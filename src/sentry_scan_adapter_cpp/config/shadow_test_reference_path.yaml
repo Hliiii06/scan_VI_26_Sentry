@@ -1,0 +1,12 @@
+# 影子契约测试专用 Mode 3 参考路线（不是实车任务文件）。
+# waypoints 的 z 是**地面/路线高度**：scan_planner 会再加 grid_map.body_height，
+# 因此这里给 0.0，避免重复加高度。
+/sentry_scan/reference_path_publisher:
+  ros__parameters:
+    frame_id: odom
+    publish_delay_sec: 0.5
+    waypoints:
+      [0.00, 0.00, 0.0,
+       1.50, 0.00, 0.0,
+       1.50, 1.50, 0.0,
+       0.00, 1.50, 0.0]

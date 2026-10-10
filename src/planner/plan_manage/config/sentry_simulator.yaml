@@ -1,0 +1,74 @@
+# PCD 地图发布与局部雷达渲染参数（全向哨兵闭环仿真）
+#
+# 雷达安装外参来自 VI_26_Sentry/src/hnurm_bringup/params/extrinsic.yaml:
+#   lidar_to_base: x=-0.03, y=0.077, z=0.0601, roll=pitch=yaw=0
+/sentry_sim/map_pub:
+  ros__parameters:
+    use_sim_time: false
+    frame_id: world
+    publish_rate: 0.2
+    downsample_res: 0.1
+    map_offset_x: 0.0
+    map_offset_y: 0.0
+    # rmuc2026_field.pcd 的地面高度散布约 -0.06 .. +0.22 m（含累计噪声/坡度），
+    # 直接使用会让占据栅格把地板本身判成障碍，覆盖机体高度带的碰撞查询将恒为占据。
+    # 因此整体下移 0.30 m，把 z=0 重新定义为可行驶地面：
+    #   - map_offset_z = -0.30 把地面与噪声压到 z<0
+    #   - keep_z_min = 0.0 丢弃地面点，keep_z_max = 1.5 丢弃无意义的顶部
+    # 代价：矮于 0.30 m 的原始障碍也会被一并剔除，属该 PCD 的已知局限。
+    map_offset_z: -0.30
+    keep_z_min: 0.0
+    keep_z_max: 1.5
+
+/sentry_sim/pcl_render_node:
+  ros__parameters:
+    use_sim_time: false
+    quadrotor_name: sentry_sim
+    sensor_type: lidar
+    body_pose_topic: body_pose
+    map.resolution: 0.1
+    map.x_size: 40.0
+    map.y_size: 40.0
+    map.z_size: 5.0
+    sensing_horizon: 30.0
+    sensing_rate: 10.0
+    estimation_rate: 10.0
+    polar_resolution: 0.3
+    yaw_fov: 360.0
+    vertical_fov: 60.0
+    min_raylength: 0.3
+    downsample_res: 0.1
+
+    # MID360 水平安装；总俯仰 = lidar_pitch + sensor_pitch，这里都为 0。
+    lidar_pitch: 0.0
+    sensor_offset_x: -0.03
+    sensor_offset_y: 0.077
+    sensor_offset_z: 0.0601
+    sensor_roll: 0.0
+    sensor_pitch: 0.0
+    sensor_yaw: 0.0
+
+    is_360lidar: 1
+    use_minicf_pattern: 1
+    use_avia_pattern: 0
+    use_vlp32_pattern: 0
+    use_os64_pattern: 0
+    use_os128_pattern: 0
+
+    cam_width: 640
+    cam_height: 480
+    cam_fx: 387.229248046875
+    cam_fy: 387.229248046875
+    cam_cx: 321.04638671875
+    cam_cy: 243.44969177246094
+
+    dynamic.enable: 0
+    dynamic.object_size: 0.0
+    dynamic.object_count: 0
+    dynamic.mode: 0
+    dynamic.velocity: 0.0
+    collision_check.enable: 0
+    collision_check.range: 0.3
+
+    use_global_map_topic: true
+    pcd_map_file: ''
