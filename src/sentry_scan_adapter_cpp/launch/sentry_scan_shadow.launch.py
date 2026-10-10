@@ -6,7 +6,7 @@
                           │                                                     │ planning/bspline
                           │                                                     v
                           │                                        closed_loop_controller
-                          │                                                     │ cmd_vel -> cmd_vel_candidate
+                          │                                                     │ cmd_vel -> /cmd_vel
                           └── health/health_ok ──> shadow_guard <──────────────┘
                                                        │            ▲
                                                        │            └── grid_map/cloud_update（地图真的在更新吗）
@@ -137,17 +137,10 @@ def _setup(context):
     start_rviz = _as_bool(value("start_rviz"))
     log_dir = os.path.expanduser(value("shadow_log_dir"))
 
-    input_gate = _as_bool(value("input_gate"))
-    cmd_gate_enabled = _as_bool(value("cmd_gate"))
-    # input_gate:=true 时，适配器改为消费闸门输出；闸门只读实车话题，用于现场验证断流/恢复。
-    if input_gate:
-        adapter_odom = "test/odom"
-        adapter_velocity = "test/velocity"
-        adapter_cloud = "test/cloud"
-    else:
-        adapter_odom = value("odom_topic")
-        adapter_velocity = value("velocity_topic")
-        adapter_cloud = value("cloud_topic")
+    # 直连实车版本：适配器直接消费实车话题（断流闸门与命令闸门已移除）
+    adapter_odom = value("odom_topic")
+    adapter_velocity = value("velocity_topic")
+    adapter_cloud = value("cloud_topic")
 
     common = {"use_sim_time": use_sim_time}
     nodes = [
@@ -207,43 +200,11 @@ def _setup(context):
                 **common,
                 "yaw_mode": "hold",
                 "spin_rate": 0.0,
-                # 影子阶段不透传 yaw 候选：MCU 保留朝向所有权。
+                # 直连实车：MCU 保留朝向所有权，不接管 yaw
                 "yaw_candidate_enabled": False,
             })],
             remappings=[("cmd_vel", value("controller_cmdvel_topic"))],
         ),
-        Node(
-            package="sentry_scan_adapter_cpp", executable="shadow_guard", name="shadow_guard",
-            namespace=NAMESPACE, output="screen",
-            parameters=[contract_yaml, common, {
-                "log_dir": log_dir,
-                "cloud_update_topic": value("map_update_topic"),
-                "max_map_age": float(value("max_map_age")),
-            }],
-        ),
-        Node(
-            package="sentry_scan_adapter_cpp", executable="input_pause_gate", name="input_pause_gate",
-            namespace=NAMESPACE, output="screen",
-            parameters=[contract_yaml, common, {
-                "odom_in": value("odom_topic"),
-                "velocity_in": value("velocity_topic"),
-                "cloud_in": value("cloud_topic"),
-            }],
-        ) if input_gate else LogInfo(msg="input_gate:=false (断流/恢复验证不可用；"
-                                         "用 input_gate:=true 启动可暂停的影子输入)"),
-        Node(
-            package="sentry_scan_adapter_cpp", executable="cmd_gate", name="cmd_gate",
-            namespace=NAMESPACE, output="screen",
-            parameters=[common, {
-                "candidate_topic": "cmd_vel_candidate",
-                "output_topic": value("gate_output_topic"),
-                "max_vx": float(value("gate_max_vx")),
-                "max_vy": float(value("gate_max_vy")),
-                "max_wz": float(value("gate_max_wz")),
-                "allow_wz": _as_bool(value("gate_allow_wz")),
-            }],
-        ) if cmd_gate_enabled else LogInfo(
-            msg="cmd_gate:=false (命令闸门未启用；接管测试必须显式启用并设置限幅)"),
         Node(
             package="sentry_scan_adapter_cpp", executable="task_adapter", name="task_adapter",
             namespace=NAMESPACE, output="screen",
@@ -318,21 +279,10 @@ def generate_launch_description():
         DeclareLaunchArgument("max_map_age", default_value="0.5",
                               description="心跳超过该时间影子输出归零"),
         DeclareLaunchArgument("start_rviz", default_value="false"),
-        DeclareLaunchArgument("cmd_gate", default_value="false",
-                              description="true = 启动命令闸门（默认禁止输出，需显式使能）"),
         DeclareLaunchArgument("controller_cmdvel_topic", default_value="cmd_vel_candidate",
                               description="跟踪器速度输出去向：默认 cmd_vel_candidate（经命令闸门）；"
                                           "设为 /cmd_vel 则**绕过闸门直连底盘**，"
                                           "仅在轮子离地的台架测试中使用，落地必须改回默认"),
-        DeclareLaunchArgument("gate_output_topic", default_value="cmd_vel_gated",
-                              description="闸门输出话题；默认不是 /cmd_vel，误启动不会驱动底盘"),
-        DeclareLaunchArgument("gate_max_vx", default_value="0.0"),
-        DeclareLaunchArgument("gate_max_vy", default_value="0.0"),
-        DeclareLaunchArgument("gate_max_wz", default_value="0.0"),
-        DeclareLaunchArgument("gate_allow_wz", default_value="false"),
-        DeclareLaunchArgument("input_gate", default_value="false",
-                              description="true = 在实车话题与适配器之间插入可暂停的输入闸门"
-                                          "（现场断流/恢复验证；只影响 /sentry_scan）"),
         DeclareLaunchArgument("use_sim_time", default_value="false",
                               description="仅回放时为 true，且必须有 /clock"),
         DeclareLaunchArgument("replay", default_value="false",
